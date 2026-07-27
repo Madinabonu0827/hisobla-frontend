@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, getCategoryIcon, getCategoryColor } from '@/lib/utils';
 import { Plus, Trash2, Target, AlertTriangle, TrendingDown } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
+import { useToast } from '@/components/ui/Toast';
 import apiClient from '@/lib/api';
 
 const BUDGET_CATEGORIES = [
@@ -21,6 +22,7 @@ const BUDGET_CATEGORIES = [
 
 export function BudgetPage() {
   const { telegramId } = useStore();
+  const { showToast } = useToast();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -59,18 +61,20 @@ export function BudgetPage() {
       setLimit('');
       setSelectedCategory('');
       setShowAdd(false);
+      showToast('Byudjet qo\'shildi!', 'success');
       fetchBudgets();
     } catch (err) {
-      console.error(err);
+      showToast('Byudjet qo\'shishda xatolik', 'error');
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await apiClient.delete(`/budgets/${id}`);
+      showToast('Byudjet o\'chirildi', 'success');
       fetchBudgets();
     } catch (err) {
-      console.error(err);
+      showToast('O\'chirishda xatolik', 'error');
     }
   };
 

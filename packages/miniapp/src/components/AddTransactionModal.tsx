@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/stores/useStore';
 import { X, Check, ChevronDown } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor } from '@/lib/utils';
+import { useToast } from '@/components/ui/Toast';
 import apiClient from '@/lib/api';
 
 const EXPENSE_CATEGORIES = [
@@ -41,6 +42,7 @@ const QUICK_AMOUNTS = [10000, 25000, 50000, 100000, 250000, 500000];
 
 export function AddTransactionModal() {
   const { showAddModal, setShowAddModal, addModalType, telegramId } = useStore();
+  const { showToast } = useToast();
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
@@ -71,12 +73,14 @@ export function AddTransactionModal() {
       setDescription('');
       setPaymentMethod('cash');
       setSuccess(true);
+      showToast(addModalType === 'expense' ? 'Xarajat qo\'shildi!' : 'Daromad qo\'shildi!', 'success');
       setTimeout(() => {
         setShowAddModal(false);
         setSuccess(false);
       }, 800);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Saqlashda xatolik. Backend ishlayapti tekshiring.';
+      showToast(msg, 'error');
     } finally {
       setIsSubmitting(false);
     }

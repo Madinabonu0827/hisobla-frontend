@@ -6,10 +6,12 @@ import { useTransactions } from '@/hooks/useApi';
 import { useStore } from '@/stores/useStore';
 import { formatCurrency, formatTime, formatDate, getCategoryIcon, getCategoryColor } from '@/lib/utils';
 import { Search, Plus, Trash2, ArrowUpRight, ArrowDownRight, Filter, X } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 import apiClient from '@/lib/api';
 
 export function TransactionsPage() {
   const { telegramId, setShowAddModal, setAddModalType } = useStore();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
@@ -25,11 +27,12 @@ export function TransactionsPage() {
   const handleDelete = useCallback(async (id: string) => {
     try {
       await apiClient.delete(`/transactions/${id}`);
+      showToast('Tranzaksiya o\'chirildi', 'success');
       refetch();
     } catch (err) {
-      console.error(err);
+      showToast('O\'chirishda xatolik', 'error');
     }
-  }, [refetch]);
+  }, [refetch, showToast]);
 
   const totalIncome = data.items?.filter((t: any) => t.type === 'INCOME').reduce((s: number, t: any) => s + t.amount, 0) || 0;
   const totalExpense = data.items?.filter((t: any) => t.type === 'EXPENSE').reduce((s: number, t: any) => s + t.amount, 0) || 0;
