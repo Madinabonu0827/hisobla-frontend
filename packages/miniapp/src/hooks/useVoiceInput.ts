@@ -4,20 +4,15 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface VoiceInputOptions {
   lang?: string;
-  onResult?: (transcript: string) => void;
+  onResult?: (text: string) => void;
   onError?: (error: string) => void;
 }
 
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognition extends EventTarget {
+interface SpeechRecognitionType {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onresult: ((event: any) => void) | null;
   onerror: ((event: any) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
@@ -28,36 +23,56 @@ interface SpeechRecognition extends EventTarget {
 
 declare global {
   interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
+    SpeechRecognition?: new () => SpeechRecognitionType;
+    webkitSpeechRecognition?: new () => SpeechRecognitionType;
   }
 }
 
 export function useVoiceInput(options: VoiceInputOptions = {}) {
   const { lang = 'uz-UZ', onResult, onError } = options;
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [mode, setMode] = useState<'speech' | 'recording' | 'none'>('none');
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const onResultRef = useRef(onResult);
+  const onErrorRef = useRef(onError);
+
+  onResultRef.current = onResult;
+  onErrorRef.current = onError;
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognition);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const MR = typeof MediaRecorder !== 'undefined';
+    setIsSupported(!!SR || MR);
+    setMode(!!SR ? 'speech' : MR ? 'recording' : 'none');
   }, []);
 
-  const startListening = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      onError?.('Ovozli kiritish qurilmangizda qo\'llab-quvvatlanmaydi');
+  const stopAll = useCallback(() => {
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch {}
+      mediaRecorderRef.current = null;
+    }
+    setIsListening(false);
+    setInterimTranscript('');
+  }, []);
+
+  const startSpeechRecognition = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      onErrorRef.current?.('Web Speech API qo\'llab-quvvatlanmaydi');
       return;
     }
 
-    if (recognitionRef.current) {
-      recognitionRef.current.abort();
-    }
+    stopAll();
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SR();
     recognition.lang = lang;
     recognition.continuous = false;
     recognition.interimResults = true;
@@ -67,7 +82,7 @@ export function useVoiceInput(options: VoiceInputOptions = {}) {
       setInterimTranscript('');
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       let interim = '';
       let final = '';
 
@@ -81,60 +96,116 @@ export function useVoiceInput(options: VoiceInputOptions = {}) {
       }
 
       if (final) {
-        setTranscript(final);
         setInterimTranscript('');
-        onResult?.(final.trim());
+        onResultRef.current?.(final.trim());
       } else {
         setInterimTranscript(interim);
       }
     };
 
     recognition.onerror = (event: any) => {
+      if (event.error === 'aborted') return;
       const errorMap: Record<string, string> = {
-        'no-speech': 'Ovoz eshitilmadi, qaytadan urinib ko\'ring',
+        'no-speech': 'Ovoz eshitilmadi',
         'audio-capture': 'Mikrofon topilmadi',
         'not-allowed': 'Mikrofon ruxsati berilmadi',
         'network': 'Tarmoq xatoligi',
-        'aborted': 'Bekor qilindi',
       };
-      const msg = errorMap[event.error] || 'Ovozli kiritish xatoligi';
+      onErrorRef.current?.(errorMap[event.error] || 'Xatolik: ' + event.error);
       setIsListening(false);
-      onError?.(msg);
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      setInterimTranscript('');
     };
 
     recognitionRef.current = recognition;
 
     try {
       recognition.start();
-    } catch {
-      onError?.('Ovozli kiritishni boshlab bo\'lmadi');
+    } catch (e) {
+      onErrorRef.current?.('Ovozli kiritishni boshlab bo\'lmadi');
       setIsListening(false);
     }
-  }, [lang, onResult, onError]);
+  }, [lang, stopAll]);
+
+  const startMediaRecording = useCallback(async () => {
+    stopAll();
+    audioChunksRef.current = [];
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        setIsListening(false);
+
+        if (audioChunksRef.current.length > 0) {
+          const blob = new Blob(audioChunksRef.current, { type: mimeType });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            onResultRef.current?.(`[AUDIO_BASE64:${base64}]`);
+          };
+          reader.readAsDataURL(blob);
+        }
+        audioChunksRef.current = [];
+      };
+
+      recorder.onerror = () => {
+        stream.getTracks().forEach(t => t.stop());
+        setIsListening(false);
+        onErrorRef.current?.('Yozish xatoligi');
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsListening(true);
+      setInterimTranscript('Yozilmoqda...');
+    } catch (e: any) {
+      if (e.name === 'NotAllowedError') {
+        onErrorRef.current?.('Mikrofon ruxsati berilmadi');
+      } else {
+        onErrorRef.current?.('Mikrofon topilmadi');
+      }
+      setIsListening(false);
+    }
+  }, [stopAll]);
+
+  const startListening = useCallback(() => {
+    if (mode === 'speech') {
+      startSpeechRecognition();
+    } else {
+      startMediaRecording();
+    }
+  }, [mode, startSpeechRecognition, startMediaRecording]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setIsListening(false);
-  }, []);
+    stopAll();
+  }, [stopAll]);
 
-  const resetTranscript = useCallback(() => {
-    setTranscript('');
-    setInterimTranscript('');
-  }, []);
+  useEffect(() => {
+    return () => stopAll();
+  }, [stopAll]);
 
   return {
     isListening,
-    transcript,
     interimTranscript,
     isSupported,
+    mode,
     startListening,
     stopListening,
-    resetTranscript,
   };
 }

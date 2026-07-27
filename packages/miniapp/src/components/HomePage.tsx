@@ -29,22 +29,33 @@ export function HomePage() {
     if (!telegramId) return;
     setVoiceProcessing(true);
     try {
-      const res = await apiClient.post('/voice/process', {
-        telegramId: parseInt(telegramId),
-        fileUrl: '',
-        fileId: '',
-      });
-      // Fallback: use text directly with AI
+      let messageText = text;
+
+      if (text.startsWith('[AUDIO_BASE64:')) {
+        const base64 = text.replace('[AUDIO_BASE64:', '').replace(']', '');
+        try {
+          const voiceRes = await apiClient.post('/voice/process', {
+            telegramId: parseInt(telegramId),
+            fileUrl: `data:audio/webm;base64,${base64}`,
+          });
+          if (voiceRes.success && voiceRes.data?.text) {
+            messageText = voiceRes.data.text;
+          }
+        } catch {
+          messageText = 'Ovozli xabar';
+        }
+      }
+
       const aiRes = await apiClient.post('/ai/chat', {
         telegramId,
-        message: `Men ovoz bilan aytdim: "${text}". Iltimos, bu tranzaksiyani qo'shing yoki maslahat bering.`,
+        message: `Foydalanuvchi ovoz bilan aytdi: "${messageText}". Tranzaksiya qo'shish kerak bo'lsa, formatini ayting. Maslahat bo'lsa, bering.`,
       });
       if (aiRes.success) {
-        setVoiceResult({ text, response: aiRes.data.response });
-        setTimeout(() => setVoiceResult(null), 5000);
+        setVoiceResult({ text: messageText, response: aiRes.data.response });
+        setTimeout(() => setVoiceResult(null), 8000);
       }
     } catch (err) {
-      console.error('Voice processing error:', err);
+      console.error('Voice error:', err);
     } finally {
       setVoiceProcessing(false);
     }

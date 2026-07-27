@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, AlertTriangle, Lightbulb, Bot, User } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
@@ -37,6 +37,11 @@ export function AIPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [advice, setAdvice] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isLoadingRef = useRef(false);
+  const telegramIdRef = useRef(telegramId);
+
+  telegramIdRef.current = telegramId;
+  isLoadingRef.current = isLoading;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,14 +58,13 @@ export function AIPage() {
     fetchAdvice();
   }, [telegramId]);
 
-  const handleSend = async (text?: string) => {
-    const messageText = text || input.trim();
-    if (!messageText || isLoading || !telegramId) return;
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text || isLoadingRef.current || !telegramIdRef.current) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: messageText,
+      content: text,
       timestamp: new Date(),
     };
 
@@ -69,9 +73,27 @@ export function AIPage() {
     setIsLoading(true);
 
     try {
+      let messageToSend = text;
+
+      if (text.startsWith('[AUDIO_BASE64:')) {
+        messageToSend = '[Ovozli xabar yuborildi]';
+        const base64 = text.replace('[AUDIO_BASE64:', '').replace(']', '');
+        try {
+          const voiceRes = await apiClient.post('/voice/process', {
+            telegramId: parseInt(telegramIdRef.current),
+            fileUrl: `data:audio/webm;base64,${base64}`,
+          });
+          if (voiceRes.success && voiceRes.data?.text) {
+            messageToSend = voiceRes.data.text;
+          }
+        } catch {
+          messageToSend = 'Ovozli xabar (transkripsiya mavjud emas)';
+        }
+      }
+
       const res = await apiClient.post('/ai/chat', {
-        telegramId,
-        message: messageText,
+        telegramId: telegramIdRef.current,
+        message: messageToSend,
       });
 
       if (res.success) {
@@ -94,7 +116,11 @@ export function AIPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const handleVoiceTranscript = useCallback((text: string) => {
+    sendMessage(text);
+  }, [sendMessage]);
 
   return (
     <div className="px-4 pt-6 flex flex-col min-h-[calc(100dvh-100px)]">
@@ -144,7 +170,7 @@ export function AIPage() {
         {QUICK_QUESTIONS.map((q) => (
           <button
             key={q}
-            onClick={() => handleSend(q)}
+            onClick={() => sendMessage(q)}
             disabled={isLoading}
             className="px-3 py-1.5 rounded-full glass-card text-xs text-gray-400 whitespace-nowrap hover:text-[#4ecdc4] transition-colors disabled:opacity-50"
           >
@@ -208,23 +234,20 @@ export function AIPage() {
       {/* Input */}
       <div className="glass-card p-2 flex items-center gap-2">
         <VoiceButton
-          onTranscript={(text) => {
-            setInput(text);
-            setTimeout(() => handleSend(text), 100);
-          }}
+          onTranscript={handleVoiceTranscript}
           size="sm"
         />
         <input
           type="text"
-          placeholder="Savolingizni yozing..."
+          placeholder="Yoki ovoz bilan bosing..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => e.key === 'Enter' && sendMessage(input.trim())}
           className="flex-1 bg-transparent outline-none text-sm px-2"
           disabled={isLoading}
         />
         <button
-          onClick={() => handleSend()}
+          onClick={() => sendMessage(input.trim())}
           disabled={!input.trim() || isLoading}
           className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
             input.trim() && !isLoading
