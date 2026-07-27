@@ -96,7 +96,7 @@ export function AIPage() {
   };
 
   return (
-    <div className="px-4 pt-6 flex flex-col h-[calc(100vh-100px)]">
+    <div className="px-4 pt-6 flex flex-col min-h-[calc(100dvh-100px)]">
       <h1 className="text-2xl font-bold mb-4">AI Maslahat</h1>
 
       {/* Score Card */}

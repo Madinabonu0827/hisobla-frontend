@@ -69,25 +69,26 @@ export default function Home() {
   if (isLoading || !isReady) return <LoadingScreen />;
 
   return (
-    <div className="min-h-screen min-h-[100dvh] pb-20">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          variants={pageVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="min-h-[calc(100dvh-80px)]"
-        >
-          {activeTab === 'home' && <HomePage />}
-          {activeTab === 'transactions' && <TransactionsPage />}
-          {activeTab === 'analytics' && <AnalyticsPage />}
-          {activeTab === 'budget' && <BudgetPage />}
-          {activeTab === 'ai' && <AIPage />}
-          {activeTab === 'profile' && <ProfilePage />}
-        </motion.div>
-      </AnimatePresence>
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-20 no-scrollbar">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+          >
+            {activeTab === 'home' && <HomePage />}
+            {activeTab === 'transactions' && <TransactionsPage />}
+            {activeTab === 'analytics' && <AnalyticsPage />}
+            {activeTab === 'budget' && <BudgetPage />}
+            {activeTab === 'ai' && <AIPage />}
+            {activeTab === 'profile' && <ProfilePage />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
       <BottomNav />
       <AddTransactionModal />
     </div>

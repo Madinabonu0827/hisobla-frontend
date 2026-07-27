@@ -26,7 +26,7 @@ export function BottomNav() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="fixed bottom-0 left-0 right-0 z-50 flex-shrink-0">
       <div className="max-w-lg mx-auto px-3 pb-2">
         <nav className="glass rounded-2xl px-1 py-1.5 flex items-center justify-around">
           {tabs.map((tab) => {

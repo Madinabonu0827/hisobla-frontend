@@ -46,6 +46,7 @@ export function AddTransactionModal() {
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const categories = addModalType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   const isExpense = addModalType === 'expense';
@@ -69,8 +70,11 @@ export function AddTransactionModal() {
       setCategory('');
       setDescription('');
       setPaymentMethod('cash');
-      setShowAddModal(false);
-      window.location.reload();
+      setSuccess(true);
+      setTimeout(() => {
+        setShowAddModal(false);
+        setSuccess(false);
+      }, 800);
     } catch (err) {
       console.error(err);
     } finally {
@@ -218,6 +222,15 @@ export function AddTransactionModal() {
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : success ? (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="flex items-center gap-2"
+              >
+                <Check size={20} />
+                <span>Saqlandi!</span>
+              </motion.div>
             ) : (
               <>
                 <Check size={20} />

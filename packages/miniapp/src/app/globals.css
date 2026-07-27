@@ -21,7 +21,6 @@
 
 html {
   scroll-behavior: smooth;
-  overflow: hidden;
 }
 
 body {
@@ -32,10 +31,11 @@ body {
   min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
 }
 
 @layer utilities {
