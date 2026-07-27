@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: hisob-backend
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build:backend && npx prisma generate
+    startCommand: npm run start:backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: BOT_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MANA_API_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+
+  - type: worker
+    name: hisob-bot
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build:bot
+    startCommand: npm run start:bot
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BOT_TOKEN
+        sync: false
+      - key: BACKEND_URL
+        fromService:
+          name: hisob-backend
+          type: web
+          property: host
+      - key: WEBAPP_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MANA_API_KEY
+        sync: false

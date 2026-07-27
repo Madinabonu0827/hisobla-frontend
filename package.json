@@ -1,0 +1,40 @@
+{
+  "name": "hisob-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Finance Bot - Telegram Mini App Ecosystem",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:bot\" \"npm run dev:backend\" \"npm run dev:miniapp\"",
+    "dev:bot": "npm run dev -w packages/bot",
+    "dev:backend": "npm run dev -w packages/backend",
+    "dev:miniapp": "npm run dev -w packages/miniapp",
+    "dev:admin": "npm run dev -w packages/admin",
+    "build": "concurrently \"npm run build:bot\" \"npm run build:backend\" \"npm run build:miniapp\"",
+    "build:bot": "npm run build -w packages/bot",
+    "build:backend": "npm run build -w packages/backend",
+    "build:miniapp": "npm run build -w packages/miniapp",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push",
+    "db:migrate": "npx prisma migrate dev",
+    "db:seed": "npx prisma db seed",
+    "db:studio": "npx prisma studio",
+    "start": "concurrently \"npm run start:bot\" \"npm run start:backend\" \"npm run start:miniapp\"",
+    "start:bot": "npm run start -w packages/bot",
+    "start:backend": "npm run start -w packages/backend",
+    "start:miniapp": "npm run dev -w packages/miniapp",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,json}\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.0",
+    "prisma": "^6.1.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  }
+}

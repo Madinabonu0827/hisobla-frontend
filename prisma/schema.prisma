@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  telegramId    String    @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+  languageCode  String?   @default("uz")
+  isPremium     Boolean   @default(false)
+  role          String    @default("USER")
+
+  transactions  Transaction[]
+  budgets       Budget[]
+  goals         Goal[]
+  notifications Notification[]
+  aiConversations AIConversation[]
+  categories    UserCategory[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        String
+  amount      Float
+  currency    String          @default("UZS")
+  category    String
+  subcategory String?
+  description String?
+  date        DateTime        @default(now())
+
+  paymentMethod String?
+  tags        String          @default("[]")
+  receiptUrl  String?
+  isRecurring Boolean         @default(false)
+  recurringId String?
+
+  source      String          @default("MANUAL")
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([category])
+  @@index([date])
+  @@map("transactions")
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  category    String
+  monthlyLimit Float
+  currency    String   @default("UZS")
+
+  month       String
+  year        Int
+
+  spent       Float    @default(0)
+  remaining   Float    @default(0)
+
+  isActive    Boolean  @default(true)
+  notifyAt    Float    @default(80)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, category, month, year])
+  @@index([userId])
+  @@map("budgets")
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  targetAmount Float
+  currentAmount Float  @default(0)
+  currency    String   @default("UZS")
+
+  deadline    DateTime?
+  icon        String?   @default("🎯")
+  color       String?   @default("#00d68f")
+
+  status      String    @default("ACTIVE")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goals")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        String
+  title       String
+  message     String
+
+  isRead      Boolean  @default(false)
+  isSent      Boolean  @default(false)
+  scheduledAt DateTime?
+
+  data        String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@map("notifications")
+}
+
+model AIConversation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role        String
+  content     String
+  tokens      Int      @default(0)
+
+  context     String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_conversations")
+}
+
+model UserCategory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  icon        String
+  color       String
+  type        String
+
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, name, type])
+  @@index([userId])
+  @@map("user_categories")
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_configs")
+}
