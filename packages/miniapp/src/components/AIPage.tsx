@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, AlertTriangle, Lightbulb, Bot, User } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
+import { VoiceButton } from '@/components/ui/VoiceButton';
 import apiClient from '@/lib/api';
 
 interface Message {
@@ -206,6 +207,13 @@ export function AIPage() {
 
       {/* Input */}
       <div className="glass-card p-2 flex items-center gap-2">
+        <VoiceButton
+          onTranscript={(text) => {
+            setInput(text);
+            setTimeout(() => handleSend(text), 100);
+          }}
+          size="sm"
+        />
         <input
           type="text"
           placeholder="Savolingizni yozing..."

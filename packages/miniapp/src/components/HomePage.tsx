@@ -5,8 +5,9 @@ import { motion } from 'framer-motion';
 import { useStore } from '@/stores/useStore';
 import { useDashboard } from '@/hooks/useApi';
 import { formatCurrency, formatCompact, getCategoryIcon, formatDate, getCategoryColor } from '@/lib/utils';
-import { Plus, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, RefreshCw, TrendingUp } from 'lucide-react';
+import { Plus, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Sparkles, RefreshCw, TrendingUp, Mic } from 'lucide-react';
 import apiClient from '@/lib/api';
+import { VoiceButton } from '@/components/ui/VoiceButton';
 
 const stagger = {
   animate: { transition: { staggerChildren: 0.06 } },
@@ -21,6 +22,33 @@ export function HomePage() {
   const { data: dashboard, loading, refetch } = useDashboard(telegramId);
   const [aiTip, setAiTip] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
+  const [voiceResult, setVoiceResult] = useState<any>(null);
+
+  const handleVoiceResult = async (text: string) => {
+    if (!telegramId) return;
+    setVoiceProcessing(true);
+    try {
+      const res = await apiClient.post('/voice/process', {
+        telegramId: parseInt(telegramId),
+        fileUrl: '',
+        fileId: '',
+      });
+      // Fallback: use text directly with AI
+      const aiRes = await apiClient.post('/ai/chat', {
+        telegramId,
+        message: `Men ovoz bilan aytdim: "${text}". Iltimos, bu tranzaksiyani qo'shing yoki maslahat bering.`,
+      });
+      if (aiRes.success) {
+        setVoiceResult({ text, response: aiRes.data.response });
+        setTimeout(() => setVoiceResult(null), 5000);
+      }
+    } catch (err) {
+      console.error('Voice processing error:', err);
+    } finally {
+      setVoiceProcessing(false);
+    }
+  };
 
   const fetchTip = useCallback(async () => {
     if (!telegramId) return;
@@ -76,7 +104,35 @@ export function HomePage() {
         >
           <RefreshCw size={16} className={`text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
+        <VoiceButton
+          onTranscript={handleVoiceResult}
+          size="sm"
+        />
       </motion.div>
+
+      {/* Voice Result */}
+      {voiceResult && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="glass-card p-4 mb-5 gradient-border"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Mic size={14} className="text-[#00d68f]" />
+            <span className="text-xs font-semibold text-[#00d68f]">Ovozli kiritish</span>
+          </div>
+          <p className="text-sm text-gray-300 mb-1">&quot;{voiceResult.text}&quot;</p>
+          <p className="text-xs text-gray-400">{voiceResult.response}</p>
+        </motion.div>
+      )}
+
+      {voiceProcessing && (
+        <div className="flex items-center gap-2 mb-4 glass-card p-3">
+          <div className="w-4 h-4 border-2 border-[#00d68f]/30 border-t-[#00d68f] rounded-full animate-spin" />
+          <span className="text-xs text-gray-400">Ovoz qayta ishlanmoqda...</span>
+        </div>
+      )}
 
       {/* Balance Card */}
       <motion.div
